@@ -1,11 +1,11 @@
 import { Injectable } from '@angular/core';
-import { CLIENTES } from './clientes.json';
 import { Cliente } from './cliente';
-import { of, Observable, throwError } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { map, catchError } from 'rxjs/operators';
+import { map, catchError, tap } from 'rxjs/operators';
 import Swal from 'sweetalert2';
 import { Router } from '@angular/router';
+import { formatDate, DatePipe } from '@angular/common';
 
 @Injectable({
   providedIn: 'root'
@@ -17,15 +17,41 @@ export class ClienteService {
 
   constructor(private http: HttpClient, private router:Router) { }
 
-  getClientes(): Observable<Cliente[]> {
-    return this.http.get(this.urlEndPoint).pipe(
-      map( (response) => response as Cliente[])
+  getClientes(page: number): Observable<any> {
+    return this.http.get(this.urlEndPoint + '/page/' + page).pipe(
+      tap((response: any) => {
+        console.log('ClienteService: tap 1');
+        (response.content as Cliente[]).forEach(cliente => {
+          console.log(cliente.nombre);
+        })
+      }),
+      map( (response: any) => {
+        (response.content as Cliente[]).map(cliente => {
+          cliente.nombre = cliente.nombre.toUpperCase();
+          /* cliente.createAt = formatDate(cliente.createAt, 'dd-MM-yyyy', 'en-US'); */
+          let datePipe = new DatePipe('es');
+          //cliente.createAt = datePipe.transform(cliente.createAt, 'EEEE dd, MMMM, yyyy');
+          return cliente;
+        });
+        return response;
+      }),
+      tap(response => {
+        console.log('ClienteService: tap 2');
+        (response.content as Cliente[]).forEach(cliente => {
+          console.log(cliente.nombre);
+        })
+      }),
     );
   }
 
   getCliente(id): Observable<Cliente>{
     return this.http.get<Cliente>(`${this.urlEndPoint}/${id}`).pipe(
       catchError(e => {
+
+        if (e.status === 400) {
+          return throwError(e);
+
+        }
         this.router.navigate(['/clientes']);
         console.error(e.error.mensaje);
         Swal.fire('Error al editar', e.error.mensaje, 'error');
@@ -35,9 +61,12 @@ export class ClienteService {
   }
 
   create(cliente: Cliente): Observable<any>{
-    return this.http.post<any>(this.urlEndPoint, cliente, {headers: this.httpHeaders}).pipe(
+    return this.http.post(this.urlEndPoint, cliente, {headers: this.httpHeaders}).pipe(
+      map((response: any) => response.cliente as Cliente),
       catchError(e => {
-        console.error(e.error.mensaje);
+        if (e.status === 400) {
+          return throwError(e);
+        }
         Swal.fire('Error al insertar el cliente', e.error.mensaje, 'error');
         return throwError(e);
       })
@@ -47,7 +76,9 @@ export class ClienteService {
   update(cliente: Cliente): Observable<any>{
     return this.http.put<any>(`${this.urlEndPoint}/${cliente.id}`, cliente, {headers: this.httpHeaders}).pipe(
       catchError(e => {
-        console.error(e.error.mensaje);
+        if (e.status === 400) {
+          return throwError(e);
+        }
         Swal.fire('Error al editar al cliente', e.error.mensaje, 'error');
         return throwError(e);
       })
@@ -57,7 +88,6 @@ export class ClienteService {
   delete(id: number): Observable<Cliente>{
     return this.http.delete<Cliente>(`${this.urlEndPoint}/${id}`, {headers: this.httpHeaders}).pipe(
       catchError(e => {
-        console.error(e.error.mensaje);
         Swal.fire('Error al eliminar al cliente', e.error.mensaje, 'error');
         return throwError(e);
       })

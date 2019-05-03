@@ -12,6 +12,7 @@ export class FormComponent implements OnInit {
 
   private cliente: Cliente = new Cliente()
   private titulo:string = "Create Client"
+  public errores: string[]
 
   constructor(private clienteService: ClienteService,
               private router: Router,
@@ -25,7 +26,11 @@ export class FormComponent implements OnInit {
     this.clienteService.create(this.cliente).subscribe(
       json => {
         this.router.navigate(['/clientes'])
-        Swal.fire('Nuevo Cliente',`${json.mensaje}: ${json.cliente.nombre}`, 'success')
+        console.log(json)
+        Swal.fire('Nuevo Cliente',`${json.mensaje}: ${json.nombre}`, 'success')
+      },
+      err => {
+        this.errores = err.error.errors as string[];
       }
     )
   }
@@ -44,7 +49,11 @@ export class FormComponent implements OnInit {
       .subscribe(json=>{
         this.router.navigate(['/clientes'])
         Swal.fire('Cliente Actualizado',`${json.mensaje}: ${json.cliente.nombre}`, 'success')
-      })
+      },
+        err => {
+          this.errores = err.error.errors as string[];
+        }
+      )
   }
 
 }
